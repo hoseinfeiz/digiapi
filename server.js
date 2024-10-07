@@ -1,2 +1,6 @@
-const App = require('./app')
+require('app-module-path').addPath(__dirname)
+require('dotenv').config()
+const DBConnect = require('configs/db')
+const App = require('app')
 App()
+DBConnect()
