@@ -1,15 +1,24 @@
 const User = require('app/models/User')
-var validator = require('validator')
+const validator = require('validator')
+const { GraphQLError } = require('graphql')
+
+const throwErrors = (message, status, code) => {
+  throw new GraphQLError(message, {
+    extensions: {
+      code: code || 'ورودی نادرست',
+      status: status || '502',
+    },
+  })
+}
+
 const resolvers = {
   Query: {
     hello: () => 'jigare baba',
   },
   Mutation: {
     register: async (param, args) => {
-      let err = []
       if (validator.isEmpty(args.phone)) {
-        err.push({ message: 'فیلد موبایل خالی است' })
-        return
+        throwErrors('فیلد موبایل وارد نشده است', '401', 'ورودی نادرست')
       }
 
       await User.create({
