@@ -9,6 +9,7 @@ const typeDefs = `
     }
     type Query{
     hello: String
+    login(phone: String! , password:String!): operation
     }
   `
 module.exports = typeDefs
