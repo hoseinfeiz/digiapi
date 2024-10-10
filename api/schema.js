@@ -4,12 +4,14 @@ const typeDefs = `
     }
 
     type operation {
+    token: String
      status: Int
      message: String
     }
     type Query{
-    hello: String
+    checkAccess: String
     login(phone: String! , password:String!): operation
     }
+
   `
 module.exports = typeDefs

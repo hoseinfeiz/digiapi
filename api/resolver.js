@@ -14,13 +14,25 @@ const throwErrors = (errorArray) => {
 
 const resolvers = {
   Query: {
-    hello: () => 'jigare baba',
+    checkAccess: (param, args, { check }) => {
+      let tokenErrors = []
+      if (check) {
+        return 'Access is OK'
+      } else {
+        tokenErrors.push({
+          message: 'کاربر دسترسی ندارد',
+          status: '401',
+          code: 'عدم دسترسی',
+        })
+        throwErrors(tokenErrors)
+      }
+    },
 
-    login: async (param, args) => {
+    login: async (param, args, { check }) => {
       let loginErrors = []
-      const isUser = await User.findOne({ phone: args.phone })
+      const user = await User.findOne({ phone: args.phone })
 
-      if (!isUser) {
+      if (!user) {
         loginErrors.push({
           message: 'چنین کاربری وجود ندارد',
           status: '401',
@@ -28,9 +40,7 @@ const resolvers = {
         })
       }
 
-      const { password } = await User.findOne({ phone: args.phone })
-
-      const passCheck = bcrypt.compareSync(args.password, password)
+      const passCheck = bcrypt.compareSync(args.password, user.password)
 
       if (!passCheck) {
         loginErrors.push({
@@ -45,6 +55,7 @@ const resolvers = {
       }
 
       return {
+        token: await User.CreateToken(user.id, process.env.SECRET_KEY, '1d'),
         status: '200',
         message: 'لاگین بدرستی انجام شد',
       }

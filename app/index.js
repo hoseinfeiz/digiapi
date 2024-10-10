@@ -10,6 +10,7 @@ const { createHandler } = require('graphql-http/lib/use/express')
 const typeDefs = require('api/schema')
 const resolvers = require('api/resolver')
 const { formatError } = require('graphql')
+const User = require('app/models/User')
 const App = async () => {
   const app = express()
   const httpServer = http.createServer(app)
@@ -41,7 +42,12 @@ const App = async () => {
     cors(),
     express.json(),
     expressMiddleware(server, {
-      context: async ({ req }) => ({ token: req.headers.token }),
+      context: async ({ req }) => {
+        const check = await User.CheckToken(req, process.env.SECRET_KEY)
+        return {
+          check,
+        }
+      },
     })
   )
 
