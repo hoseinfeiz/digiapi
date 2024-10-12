@@ -15,6 +15,7 @@ const App = async () => {
   const app = express()
   const httpServer = http.createServer(app)
   const server = new ApolloServer({
+    introspection: true,
     typeDefs,
     resolvers,
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
@@ -43,9 +44,12 @@ const App = async () => {
     express.json(),
     expressMiddleware(server, {
       context: async ({ req }) => {
-        const check = await User.CheckToken(req, process.env.SECRET_KEY)
-        return {
-          check,
+        try {
+          const check = await User.CheckToken(req, process.env.SECRET_KEY)
+          return { check }
+        } catch (error) {
+          console.error('Error in token verification:', error)
+          return { check: null }
         }
       },
     })

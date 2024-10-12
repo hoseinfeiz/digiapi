@@ -17,9 +17,15 @@ User.statics.CreateToken = async (id, secretkey, exp) => {
 User.statics.CheckToken = async (req, secretkey) => {
   const token = req.headers.token
   if (token) {
-    const verif = await jwt.verify(token, secretkey)
-    console.log('verify is: ', verif)
-    return verif
+    try {
+      const verif = await jwt.verify(token, secretkey)
+      console.log('verify is: ', verif)
+      return verif
+    } catch (err) {
+      console.error('Token verification error:', err)
+      // You can return null or throw an error here based on your need
+      return null
+    }
   } else {
     return null
   }
