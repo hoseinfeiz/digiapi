@@ -1,6 +1,7 @@
 const express = require('express')
 const { ApolloServer } = require('@apollo/server')
 const { expressMiddleware } = require('@apollo/server/express4')
+const { graphqlUploadExpress } = require('graphql-upload-minimal')
 const {
   ApolloServerPluginDrainHttpServer,
 } = require('@apollo/server/plugin/drainHttpServer')
@@ -14,12 +15,17 @@ const User = require('app/models/User')
 const App = async () => {
   const app = express()
   const httpServer = http.createServer(app)
+  app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 1 }))
   const server = new ApolloServer({
     introspection: true,
     typeDefs,
     resolvers,
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
     formatError: (err) => {
+      if (!err.originalError) {
+        return err
+      }
+      console.log('error is', err)
       const customError = err.extensions.errors.map((item) => {
         return {
           message: item.message,
@@ -45,8 +51,16 @@ const App = async () => {
     expressMiddleware(server, {
       context: async ({ req }) => {
         try {
+          let isAdmin = false
           const check = await User.CheckToken(req, process.env.SECRET_KEY)
-          return { check }
+          if (check) {
+            const user = await User.findById(check.id)
+            isAdmin = user.level
+          }
+          return {
+            check,
+            isAdmin,
+          }
         } catch (error) {
           console.error('Error in token verification:', error)
           return { check: null }

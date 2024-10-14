@@ -4,6 +4,7 @@ const User = new mongoose.Schema(
   {
     phone: { type: String, required: true },
     password: { type: String, required: true },
+    level: { type: String, default: false },
   },
   {
     timestamps: true,

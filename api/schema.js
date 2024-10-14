@@ -1,6 +1,8 @@
 const typeDefs = `
+    scalar Upload
     type Mutation {
       register(phone: String! , password: String!): operation
+      multimedia(image: Upload!): operation
     }
 
     type operation {
@@ -11,6 +13,15 @@ const typeDefs = `
     type Query{
     checkAccess: String
     login(phone: String! , password:String!): operation
+    getAllMultimedia(page: Int , limit:Int): [Multimedia]
+    }
+
+    type Multimedia {
+    name: String
+    dimWidth: String
+    dimHeight: String
+    format: String
+    dir: String
     }
 
   `

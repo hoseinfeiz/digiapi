@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Page Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <form action="#" id="form">
+          <div class="form-group">
+            <label>تصویر مقاله : </label>
+            <input type="file" id="image" name="image" class="form-control" />
+          </div>
+          <button type="submit" class="btn btn-danger">ارسال</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById('form').addEventListener('submit', (e) => {
+        e.preventDefault()
+
+        // Construct GraphQL mutation request
+        let data = {
+          query: `
+              mutation addMultimedia($image: Upload!) {
+                  multimedia(image: $image) {
+                      status
+                      message
+                  }
+              }
+          `,
+          variables: {
+            image: null, // Placeholder for the file
+          },
+        }
+
+        // Map to associate file upload
+        let map = {
+          0: ['variables.image'],
+        }
+
+        // Get the file from the input field
+        let file = document.getElementById('image').files[0]
+
+        // Create FormData and append the data
+        let formD = new FormData()
+        formD.append('operations', JSON.stringify(data)) // Add the operations object
+        formD.append('map', JSON.stringify(map)) // Add the file map
+        formD.append(0, file, file.name) // Append the file
+
+        // Set up fetch options, no need for Content-Type since FormData handles it
+        let options = {
+          method: 'POST',
+          headers: {
+            token:
+              'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3MDU0NzI2ZTQ1NWM0ZTZjNDhhMGEyOCIsImlhdCI6MTcyODg4MzgxMywiZXhwIjoxNzI4OTcwMjEzfQ.FoiTewf1WtlCjhyk1fPp_TU4fCicJyGpMkioRRXRePU',
+            'x-apollo-operation-name': 'addMultimedia',
+          },
+          body: formD, // Pass FormData directly
+        }
+
+        // Send the request
+        let url = 'http://localhost:4000/graphql'
+
+        fetch(url, options)
+          .then((res) => res.json())
+          .then((res) => console.log(res))
+          .catch((err) => console.log(err))
+      })
+    </script>
+  </body>
+</html>
