@@ -1,6 +1,8 @@
 const User = require('app/models/User')
 const validator = require('validator')
 const multimedia = require('app/models/Multimedia')
+const sizeOf = require('image-size')
+const fType = require('file-type')
 const { GraphQLError } = require('graphql')
 const { GraphQLUpload } = require('graphql-upload-minimal')
 const path = require('path')
@@ -71,8 +73,38 @@ const resolvers = {
       if (check && isAdmin) {
         const page = args.page || 1
         const limit = args.limit || 10
-        const allMultimedia = await multimedia.paginate({}, { page, limit })
-        return allMultimedia.docs
+        try {
+          const allMultimedia = await multimedia.paginate({}, { page, limit })
+          const media = allMultimedia.docs
+          for (let index = 0; index < media.length; index++) {
+            sizeOf(
+              path.join(__dirname, `/public/${media[index].dir}`),
+              async (err, dim) => {
+                media[index].dimWidth = await dim.width
+                media[index].dimHeight = await dim.height
+              }
+            )
+            const fileType = await fType.fromFile(
+              path.join(__dirname, `/public/${media[index].dir}`)
+            )
+            media[index].format = fileType.ext
+          }
+          return allMultimedia.docs
+        } catch (error) {
+          throw new GraphQLError('Multimedia Error', {
+            extensions: {
+              code: 'Multimedia_ERROR',
+              errors: [
+                {
+                  message: 'خطایی در گرفتن تصاویر از دیتابیس رخ داده است',
+                  status: '500',
+                  code: 'Internal server error',
+                  error,
+                },
+              ],
+            },
+          })
+        }
       }
     },
   },
