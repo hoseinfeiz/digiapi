@@ -1,6 +1,7 @@
 const User = require('app/models/User')
 const validator = require('validator')
 const multimedia = require('app/models/Multimedia')
+const Category = require('app/models/Category')
 const sizeOf = require('image-size')
 const fType = require('file-type')
 const { GraphQLError } = require('graphql')
@@ -175,6 +176,74 @@ const resolvers = {
             },
           })
         }
+      }
+    },
+    category: async (param, args, { check, isAdmin }) => {
+      let errorCategory = []
+      console.log(args)
+      if (check && isAdmin) {
+        try {
+          if (validator.isEmpty(args.input.name)) {
+            errorCategory.push({
+              message: 'فیلد نام دسته بندی خالی است',
+            })
+          }
+
+          if (validator.isEmpty(args.input.image)) {
+            errorCategory.push({
+              message: 'فیلد تصویر دسته بندی خالی است',
+            })
+          }
+
+          if (await Category.findOne({ name: args.input.name })) {
+            errorCategory.push({
+              message: 'نام دسته بندی تکراری است',
+            })
+          }
+
+          if (errorCategory.length > 0) {
+            throw error
+          }
+
+          await Category.create({
+            name: args.input.name,
+            label: args.input.label,
+            parent: args.input.parent,
+            image: args.input.image,
+          })
+
+          return {
+            status: 200,
+            message: 'دسته بندی بدرستی ایجاد شد',
+          }
+        } catch {
+          throw new GraphQLError('Database Error', {
+            extensions: {
+              code: 'Database Error',
+              errors:
+                errorCategory.length > 0
+                  ? errorCategory
+                  : [
+                      {
+                        message: 'امکان ذخیره سازی در دیتابیس وجود ندارد',
+                        status: '500',
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'ACCESS_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
       }
     },
   },

@@ -20,7 +20,6 @@ User.statics.CheckToken = async (req, secretkey) => {
   if (token) {
     try {
       const verif = await jwt.verify(token, secretkey)
-      console.log('verify is: ', verif)
       return verif
     } catch (err) {
       console.error('Token verification error:', err)

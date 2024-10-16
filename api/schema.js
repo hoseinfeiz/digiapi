@@ -3,6 +3,14 @@ const typeDefs = `
     type Mutation {
       register(phone: String! , password: String!): operation
       multimedia(image: Upload!): operation
+      category(input: categoryInput): operation
+    }
+
+    input categoryInput {
+    name: String!
+    label: String
+    parent: ID
+    image: ID!
     }
 
     type operation {
