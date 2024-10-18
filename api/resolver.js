@@ -10,6 +10,8 @@ const path = require('path')
 const fs = require('fs')
 const bcrypt = require('bcrypt')
 const { mkdirp } = require('mkdirp')
+const Multimedia = require('../app/models/Multimedia')
+const Brand = require('../app/models/Brand')
 const saltRounds = 10
 const throwErrors = (errorArray) => {
   throw new GraphQLError('Validation Error', {
@@ -106,6 +108,27 @@ const resolvers = {
             },
           })
         }
+      }
+    },
+    getAllCategories: async (param, args) => {
+      const page = args.input.page || 1
+      const limit = args.input.limit || 10
+      let cats = []
+      if (args.input.mainCategory && !args.input.parentCategory) {
+        cats = await Category.paginate(
+          { parent: null },
+          { page, limit, populate: { path: 'image' } }
+        )
+        return cats.docs
+      } else if (!args.input.mainCategory && args.input.parentCategory) {
+        cats = await Category.paginate(
+          { parent: args.input.catID },
+          { page, limit, populate: [{ path: 'image' }, { path: 'parent' }] }
+        )
+        return cats.docs
+      } else if (!args.input.mainCategory && !args.input.parentCategory) {
+        cats = await Category.paginate({}, { page, limit })
+        return cats.docs
       }
     },
   },
@@ -246,7 +269,76 @@ const resolvers = {
         })
       }
     },
+    brand: async (param, args, { check, isAdmin }) => {
+      let errorBrand = []
+      if (check && isAdmin) {
+        try {
+          if (validator.isEmpty(args.input.name)) {
+            errorBrand.push({
+              message: 'فیلد نام برند خالی است',
+            })
+          }
+
+          if (validator.isEmpty(args.input.image)) {
+            errorBrand.push({
+              message: 'فیلد تصویر برند خالی است',
+            })
+          }
+
+          if (errorBrand.length > 0) {
+            throw error
+          }
+
+          await Brand.create({
+            name: args.input.name,
+            label: args.input.label,
+            image: args.input.image,
+            category: args.input.category,
+          })
+
+          return {
+            status: 200,
+            message: 'برند جدید بدرستی ذخیره شد',
+          }
+        } catch (err) {
+          console.log(err)
+          throw new GraphQLError('Database error', {
+            extensions: {
+              code: 'DATABASE_SAVE_BRAND_ERROR',
+              errors:
+                errorBrand.length > 0
+                  ? errorBrand
+                  : [
+                      {
+                        message: 'خطا در ذخیره سازی برند جدید رخ داده است',
+                        status: '500',
+                        error: err,
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'ACCESS_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
   },
+  // Category: {
+  //   parent: async (param, args) =>
+  //     await Category.findOne({ _id: param.parent }),
+  //   image: async (param, args) =>
+  //     await Multimedia.findOne({ _id: param.image }),
+  // },
 }
 
 const saveImage = (filename, stream) => {
