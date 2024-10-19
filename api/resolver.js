@@ -12,6 +12,7 @@ const bcrypt = require('bcrypt')
 const { mkdirp } = require('mkdirp')
 const Multimedia = require('../app/models/Multimedia')
 const Brand = require('../app/models/Brand')
+const Survey = require('../app/models/Survey')
 const saltRounds = 10
 const throwErrors = (errorArray) => {
   throw new GraphQLError('Validation Error', {
@@ -131,6 +132,46 @@ const resolvers = {
         return cats.docs
       }
     },
+    getAllBrands: async (param, args, { check, isAdmin }) => {
+      if (check && isAdmin) {
+        let brandErr = []
+        let page = args.input.page || 1
+        let limit = args.input.limit || 10
+        try {
+          const brands = await Brand.paginate(
+            {},
+            { page, limit, populate: { path: 'category' } }
+          )
+
+          return brands.docs
+        } catch (error) {
+          console.log(error)
+          throw new GraphQLError('database save data error', {
+            extensions: {
+              code: 'database_ERROR',
+              errors: [
+                {
+                  message: 'در خواندن اطلاعات برند از دیتابیس خطا وجود دارد',
+                  status: '401',
+                },
+              ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'Access_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
   },
   Mutation: {
     register: async (param, args) => {
@@ -203,7 +244,7 @@ const resolvers = {
     },
     category: async (param, args, { check, isAdmin }) => {
       let errorCategory = []
-      console.log(args)
+
       if (check && isAdmin) {
         try {
           if (validator.isEmpty(args.input.name)) {
@@ -311,6 +352,89 @@ const resolvers = {
                   : [
                       {
                         message: 'خطا در ذخیره سازی برند جدید رخ داده است',
+                        status: '500',
+                        error: err,
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'ACCESS_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
+    survey: async (param, args, { check, isAdmin }) => {
+      let errorSurvey = []
+      if (check && isAdmin) {
+        try {
+          let surveyArr = []
+          for (let index = 0; index < args.input.length; index++) {
+            const element = args.input[index]
+            if (validator.isEmpty(element.name)) {
+              errorSurvey.push({
+                message: 'فیلد نام برند خالی است',
+              })
+            }
+
+            if (!(await Survey.findOne({ category: element.category }))) {
+              errorSurvey.push({
+                message: 'دسته بندی مورد نظر وجود ندارد',
+              })
+            }
+
+            if (
+              await Survey.findOne({
+                category: element.category,
+                name: element.name,
+              })
+            ) {
+              errorSurvey.push({
+                message: 'معیار ارزیابی تکراری است',
+              })
+            }
+            surveyArr.push({
+              name: element.name,
+              label: element.label,
+              category: element.category,
+            })
+          }
+
+          if (errorSurvey.length > 0) {
+            throw error
+          }
+
+          await Survey.create({
+            name: args.input.name,
+            label: args.input.label,
+            category: args.input.category,
+          })
+
+          return {
+            status: 200,
+            message: 'معیارهای امتیازدهی بدرستی ذخیره شد',
+          }
+        } catch (err) {
+          console.log(err)
+          throw new GraphQLError('Database error', {
+            extensions: {
+              code: 'DATABASE_SAVE_SURVEY_ERROR',
+              errors:
+                errorSurvey.length > 0
+                  ? errorSurvey
+                  : [
+                      {
+                        message:
+                          'خطا در ذخیره سازی معیار امتیازدهی جدید رخ داده است',
                         status: '500',
                         error: err,
                       },
