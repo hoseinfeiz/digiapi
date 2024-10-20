@@ -6,7 +6,19 @@ const typeDefs = `
       category(input: categoryInput): operation!
       brand(input: brandInput): operation!
       survey(input: surveyInput!): operation!
+      productSpec(input: productSpecInput): operation!
+      productSpecDetail(input: productSpecDetailInput): operation!
     }
+      input productSpecDetailInput{
+      name: String!
+      specs: ID!
+      label: String
+      }
+     input productSpecInput{
+     specs: String!
+     label: String
+     category: ID!
+     }
      input surveyInput{
      list: [surveyList]!
      } 
@@ -33,6 +45,7 @@ const typeDefs = `
     token: String
      status: Int
      message: String
+     _id: ID
     }
     type Query{
     checkAccess: String
@@ -41,6 +54,26 @@ const typeDefs = `
     getAllCategories(input: inputCategory): [Category]
     getAllBrands(input: inputBrand): [Brand]
     getAllSurveys(categoryID: ID!): [Survey]
+    getProductSpecs(categoryID: ID!): [ProductSpec]
+    getProductSpecDetails(specs: ID!): [ProductSpecDetail]
+    }
+    type ProductSpecDetail{
+    _id: ID
+    name: String
+    label: String
+    specs: Specs
+    }
+    type Specs{
+    _id: ID
+    label: String
+    specs: String
+    category: Category
+    }
+    type ProductSpec{
+    _id: ID
+    specs: String
+    category: Category
+    label: String
     }
     type Survey{
     _id: ID

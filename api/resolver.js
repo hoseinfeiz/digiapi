@@ -13,6 +13,8 @@ const { mkdirp } = require('mkdirp')
 const Multimedia = require('../app/models/Multimedia')
 const Brand = require('../app/models/Brand')
 const Survey = require('../app/models/Survey')
+const ProductSpec = require('../app/models/ProductSpec')
+const ProductSpecDetails = require('../app/models/ProductSpecDetails')
 const saltRounds = 10
 const throwErrors = (errorArray) => {
   throw new GraphQLError('Validation Error', {
@@ -176,7 +178,6 @@ const resolvers = {
       if (check && isAdmin) {
         let surveyErr = []
         try {
-          console.log(args)
           let cats = await Category.findById(args.categoryID)
             .populate('parent')
             .exec()
@@ -227,6 +228,140 @@ const resolvers = {
                       {
                         message:
                           'در خواندن اطلاعات برند از دیتابیس خطا وجود دارد',
+                        status: '401',
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'Access_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
+    getProductSpecs: async (param, args, { check, isAdmin }) => {
+      if (check && isAdmin) {
+        let productSpecErr = []
+        try {
+          let cats = await Category.findById(args.categoryID)
+            .populate('parent')
+            .exec()
+
+          if (cats.parent == null) {
+            productSpecErr.push({
+              messsage: 'این دسته اصلی است و برای آن مشخصات محصول وجود ندارد',
+            })
+          } else if (cats.parent.parent == null) {
+            const list = await ProductSpec.find({ category: args.categoryID })
+              .populate('category')
+              .exec()
+            if (list.length == 0) {
+              productSpecErr.push({
+                messsage: 'برای این دسته بندی مشخصات محصول ثبت نشده است',
+              })
+            }
+            return list
+          } else {
+            const list = await ProductSpec.find({ category: cats.parent })
+              .populate('category')
+              .exec()
+            if (list.length == 0) {
+              productSpecErr.push({
+                messsage: 'برای این دسته بندی مشخصات محصول ثبت نشده است',
+              })
+            }
+            return list
+          }
+
+          if (productSpecErr.length > 0) {
+            throw error
+          }
+          const productspecs = await ProductSpec.find({
+            category: args.categoryID,
+          })
+            .populate('category')
+            .exec()
+          return productspecs
+        } catch (error) {
+          console.log(error)
+          throw new GraphQLError('database save data error', {
+            extensions: {
+              code: 'database_ERROR',
+              errors:
+                productSpecErr.length > 0
+                  ? productSpecErr
+                  : [
+                      {
+                        message:
+                          'در خواندن اطلاعات مشخصات محصول از دیتابیس خطا وجود دارد',
+                        status: '401',
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'Access_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
+    getProductSpecDetails: async (param, args, { check, isAdmin }) => {
+      if (check && isAdmin) {
+        let productSpecErr = []
+        try {
+          let spec = await ProductSpec.findById(args.specs)
+
+          if (spec != null) {
+            if (spec.length == 0) {
+              productSpecErr.push({
+                message: 'ریزمشخصاتی برای ویژگی مورد نظر ثبت نشده',
+              })
+              throw error
+            } else {
+              return await ProductSpecDetails.find({ specs: args.specs })
+                .populate({ path: 'specs', populate: { path: 'category' } })
+                .exec()
+            }
+          } else {
+            productSpecErr.push({
+              message:
+                'مشخصات مورد نظر وجود ندارد که بتوان  زیرمشخصات آنرا نمایش داد',
+            })
+          }
+
+          if (productSpecErr.length > 0) {
+            throw error
+          }
+        } catch (error) {
+          console.log(error)
+          throw new GraphQLError('database save data error', {
+            extensions: {
+              code: 'database_ERROR',
+              errors:
+                productSpecErr.length > 0
+                  ? productSpecErr
+                  : [
+                      {
+                        message:
+                          'در خواندن اطلاعات ریزمشخصات محصول از دیتابیس خطا وجود دارد',
                         status: '401',
                       },
                     ],
@@ -501,6 +636,152 @@ const resolvers = {
                       {
                         message:
                           'خطا در ذخیره سازی معیار امتیازدهی جدید رخ داده است',
+                        status: '500',
+                        error: err,
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'ACCESS_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
+    productSpec: async (param, args, { check, isAdmin }) => {
+      let errorproductSpec = []
+      if (check && isAdmin) {
+        try {
+          if (validator.isEmpty(args.input.specs)) {
+            errorproductSpec.push({
+              message: 'فیلد نام مشخصات خالی است',
+            })
+          }
+
+          if (!(await Category.findOne({ _id: args.input.category }))) {
+            errorproductSpec.push({
+              message: 'دسته بندی مورد نظر وجود ندارد',
+            })
+          }
+
+          if (
+            await ProductSpec.findOne({
+              category: args.input.category,
+              specs: args.input.specs,
+            })
+          ) {
+            errorproductSpec.push({
+              message: 'مشخصات محصول تکراری است',
+            })
+          }
+          if (errorproductSpec.length > 0) {
+            throw error
+          }
+          const specId = await ProductSpec.create({
+            name: args.input.specs,
+            label: args.input.label,
+            category: args.input.category,
+          })
+
+          return {
+            _id: specId.id,
+            status: 200,
+            message: 'مشخصات محصول بدرستی ذخیره شد',
+          }
+        } catch (err) {
+          console.log(err)
+          throw new GraphQLError('Database error', {
+            extensions: {
+              code: 'DATABASE_SAVE_productSpec_ERROR',
+              errors:
+                errorproductSpec.length > 0
+                  ? errorproductSpec
+                  : [
+                      {
+                        message:
+                          'خطا در ذخیره سازی مشخصات محصول جدید رخ داده است',
+                        status: '500',
+                        error: err,
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'ACCESS_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
+    productSpecDetail: async (param, args, { check, isAdmin }) => {
+      let errorproductSpec = []
+      if (check && isAdmin) {
+        try {
+          if (validator.isEmpty(args.input.name)) {
+            errorproductSpec.push({
+              message: 'فیلد نام ریزمشخصات خالی است',
+            })
+          }
+
+          if (!(await ProductSpec.findOne({ _id: args.input.specs }))) {
+            errorproductSpec.push({
+              message: ' مشخصات مورد نظر وجود ندارد',
+            })
+          }
+
+          if (
+            await ProductSpecDetails.findOne({
+              specs: args.input.specs,
+              name: args.input.name,
+            })
+          ) {
+            errorproductSpec.push({
+              message: 'ریزمشخصات محصول تکراری است',
+            })
+          }
+          if (errorproductSpec.length > 0) {
+            throw error
+          }
+          const specDetailId = await ProductSpecDetails.create({
+            name: args.input.name,
+            label: args.input.label,
+            specs: args.input.specs,
+          })
+
+          return {
+            _id: specDetailId.id,
+            status: 200,
+            message: 'ریزمشخصات محصول بدرستی ذخیره شد',
+          }
+        } catch (err) {
+          console.log(err)
+          throw new GraphQLError('Database error', {
+            extensions: {
+              code: 'DATABASE_SAVE_productSpec_ERROR',
+              errors:
+                errorproductSpec.length > 0
+                  ? errorproductSpec
+                  : [
+                      {
+                        message:
+                          'خطا در ذخیره سازی ریزمشخصات محصول جدید رخ داده است',
                         status: '500',
                         error: err,
                       },
