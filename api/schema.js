@@ -5,10 +5,13 @@ const typeDefs = `
       multimedia(image: Upload!): operation!
       category(input: categoryInput): operation!
       brand(input: brandInput): operation!
-      survey(input: [surveyInput!]): operation!
+      survey(input: surveyInput!): operation!
     }
+     input surveyInput{
+     list: [surveyList]!
+     } 
 
-    input surveyInput{
+    input surveyList{
     name: String!
     label: String
     category: ID!
@@ -37,6 +40,13 @@ const typeDefs = `
     getAllMultimedia(page: Int , limit:Int): [Multimedia]
     getAllCategories(input: inputCategory): [Category]
     getAllBrands(input: inputBrand): [Brand]
+    getAllSurveys(categoryID: ID!): [Survey]
+    }
+    type Survey{
+    _id: ID
+    name:String
+    label: String
+    category: Category
     }
     input inputBrand{
     page: Int

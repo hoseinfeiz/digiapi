@@ -172,6 +172,81 @@ const resolvers = {
         })
       }
     },
+    getAllSurveys: async (param, args, { check, isAdmin }) => {
+      if (check && isAdmin) {
+        let surveyErr = []
+        try {
+          console.log(args)
+          let cats = await Category.findById(args.categoryID)
+            .populate('parent')
+            .exec()
+
+          if (cats.parent == null) {
+            surveyErr.push({
+              messsage:
+                'این دسته اصلی است و برای آن معیار اندازه گیری وجود ندارد',
+            })
+          } else if (cats.parent.parent == null) {
+            const list = await Survey.find({ category: args.categoryID })
+              .populate('category')
+              .exec()
+            if (list.length == 0) {
+              surveyErr.push({
+                messsage: 'برای این دسته بندی معیاراندازه گیری ثبت نشده است',
+              })
+            }
+            return list
+          } else {
+            const list = await Survey.find({ category: cats.parent })
+              .populate('category')
+              .exec()
+            if (list.length == 0) {
+              surveyErr.push({
+                messsage: 'برای این دسته بندی معیاراندازه گیری ثبت نشده است',
+              })
+            }
+            return list
+          }
+
+          if (surveyErr.length > 0) {
+            throw error
+          }
+          const surveys = await Survey.find({ category: args.categoryID })
+            .populate('category')
+            .exec()
+          return surveys
+        } catch (error) {
+          console.log(error)
+          throw new GraphQLError('database save data error', {
+            extensions: {
+              code: 'database_ERROR',
+              errors:
+                surveyErr.length > 0
+                  ? surveyErr
+                  : [
+                      {
+                        message:
+                          'در خواندن اطلاعات برند از دیتابیس خطا وجود دارد',
+                        status: '401',
+                      },
+                    ],
+            },
+          })
+        }
+      } else {
+        throw new GraphQLError('Access Error', {
+          extensions: {
+            code: 'Access_ERROR',
+            errors: [
+              {
+                message: 'کاربر دسترسی لازم را ندارد',
+                status: '401',
+              },
+            ],
+          },
+        })
+      }
+    },
   },
   Mutation: {
     register: async (param, args) => {
@@ -377,16 +452,15 @@ const resolvers = {
       let errorSurvey = []
       if (check && isAdmin) {
         try {
-          let surveyArr = []
-          for (let index = 0; index < args.input.length; index++) {
-            const element = args.input[index]
+          for (let index = 0; index < args.input.list.length; index++) {
+            const element = args.input.list[index]
             if (validator.isEmpty(element.name)) {
               errorSurvey.push({
                 message: 'فیلد نام برند خالی است',
               })
             }
 
-            if (!(await Survey.findOne({ category: element.category }))) {
+            if (!(await Category.findOne({ _id: element.category }))) {
               errorSurvey.push({
                 message: 'دسته بندی مورد نظر وجود ندارد',
               })
@@ -402,23 +476,15 @@ const resolvers = {
                 message: 'معیار ارزیابی تکراری است',
               })
             }
-            surveyArr.push({
+            if (errorSurvey.length > 0) {
+              throw error
+            }
+            await Survey.create({
               name: element.name,
               label: element.label,
               category: element.category,
             })
           }
-
-          if (errorSurvey.length > 0) {
-            throw error
-          }
-
-          await Survey.create({
-            name: args.input.name,
-            label: args.input.label,
-            category: args.input.category,
-          })
-
           return {
             status: 200,
             message: 'معیارهای امتیازدهی بدرستی ذخیره شد',
